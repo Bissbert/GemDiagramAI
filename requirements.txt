@@ -1,0 +1,7 @@
+tensorflow==2.14.0
+Image
+Pillow
+cairosvg
+numpy
+tensorflow-macos
+tensorflow-metal
