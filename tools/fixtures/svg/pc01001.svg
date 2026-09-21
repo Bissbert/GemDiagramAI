@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg baseProfile="full" preserveAspectRatio="xMinYMin meet" version="1.1" viewBox="-20 -20 690 460" xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+<style type="text/css">
+		path {
+			stroke: black;
+			stroke-width: 0.5px;
+			stroke-miterlimit: 1.414;
+			fill: #FCFCFF;
+		}
+	</style>
+</defs>
+<rect height="460" style="fill:white;" width="690" x="-20" y="-20"/>
+<text fill="black" font-family="sans-serif" font-size="9px" text-anchor="middle">
+<tspan x="153" y="215">4</tspan>
+<tspan x="189" y="191">8</tspan>
+<tspan x="213" y="155">12</tspan>
+<tspan x="221" y="113">16</tspan>
+<tspan x="213" y="71">20</tspan>
+<tspan x="189" y="35">24</tspan>
+<tspan x="153" y="11">28</tspan>
+<tspan x="111" y="3">32</tspan>
+<tspan x="69" y="11">36</tspan>
+<tspan x="33" y="35">40</tspan>
+<tspan x="9" y="71">44</tspan>
+<tspan x="1" y="113">48</tspan>
+<tspan x="9" y="155">52</tspan>
+<tspan x="33" y="191">56</tspan>
+<tspan x="69" y="215">60</tspan>
+<tspan x="111" y="223">&lt;64&gt;</tspan>
+</text>
+<path d="M 393 210 393 10"/>
+<path d="M 393 210 395 202"/>
+<path d="M 393 210 391 202"/>
+<path d="M 393 10 391 18"/>
+<path d="M 393 10 395 18"/>
+<path d="M 385 210 401 210"/>
+<path d="M 385 10 401 10"/>
+<text fill="white" font-family="sans-serif" font-size="11px" stroke="white" stroke-linejoin="round" stroke-width="5" text-anchor="middle" x="393" y="114">W</text>
+<text fill="black" font-family="sans-serif" font-size="11px" text-anchor="middle" x="393" y="114">W</text>
+<path d="M 247 150 247 70"/>
+<path d="M 247 150 249 142"/>
+<path d="M 247 150 245 142"/>
+<path d="M 247 70 245 78"/>
+<path d="M 247 70 249 78"/>
+<path d="M 239 150 255 150"/>
+<path d="M 239 70 255 70"/>
+<text fill="white" font-family="sans-serif" font-size="11px" stroke="white" stroke-linejoin="round" stroke-width="5" text-anchor="middle" x="247" y="114">U</text>
+<text fill="black" font-family="sans-serif" font-size="11px" text-anchor="middle" x="247" y="114">U</text>
+<path d="M 10 393 210 393"/>
+<path d="M 10 393 18 395"/>
+<path d="M 10 393 18 391"/>
+<path d="M 210 393 202 391"/>
+<path d="M 210 393 202 395"/>
+<path d="M 10 385 10 401"/>
+<path d="M 210 385 210 401"/>
+<text fill="white" font-family="sans-serif" font-size="11px" stroke="white" stroke-linejoin="round" stroke-width="5" text-anchor="middle" x="110" y="397">L</text>
+<text fill="black" font-family="sans-serif" font-size="11px" text-anchor="middle" x="110" y="397">L</text>
+<path d="M 70 247 150 247"/>
+<path d="M 70 247 78 249"/>
+<path d="M 70 247 78 245"/>
+<path d="M 150 247 142 245"/>
+<path d="M 150 247 142 249"/>
+<path d="M 70 239 70 255"/>
+<path d="M 150 239 150 255"/>
+<text fill="white" font-family="sans-serif" font-size="11px" stroke="white" stroke-linejoin="round" stroke-width="5" text-anchor="middle" x="110" y="251">T</text>
+<text fill="black" font-family="sans-serif" font-size="11px" text-anchor="middle" x="110" y="251">T</text>
+<path d="M -2 294 -2 259"/>
+<path d="M -2 294 0 286"/>
+<path d="M -2 294 -4 286"/>
+<path d="M -2 259 -4 267"/>
+<path d="M -2 259 0 267"/>
+<path d="M -10 294 6 294"/>
+<path d="M -10 259 6 259"/>
+<text fill="white" font-family="sans-serif" font-size="11px" stroke="white" stroke-linejoin="round" stroke-width="5" text-anchor="middle" x="-2" y="280">C</text>
+<text fill="black" font-family="sans-serif" font-size="11px" text-anchor="middle" x="-2" y="280">C</text>
+<path d="M -2 296 -2 381"/>
+<path d="M -2 296 -4 304"/>
+<path d="M -2 296 0 304"/>
+<path d="M -2 381 0 373"/>
+<path d="M -2 381 -4 373"/>
+<path d="M 6 296 -10 296"/>
+<path d="M 6 381 -10 381"/>
+<text fill="white" font-family="sans-serif" font-size="11px" stroke="white" stroke-linejoin="round" stroke-width="5" text-anchor="middle" x="-2" y="342">P</text>
+<text fill="black" font-family="sans-serif" font-size="11px" text-anchor="middle" x="-2" y="342">P</text>
+<path d="M 110 210 110 210 72 202 72 202 72 202 Z"/>
+<path d="M 72 202 72 202 39 181 39 181 Z"/>
+<path d="M 39 181 39 181 18 148 18 148 Z"/>
+<path d="M 18 148 18 148 10 110 10 110 18 148 Z"/>
+<path d="M 10 110 10 110 18 72 18 72 18 72 Z"/>
+<path d="M 18 72 18 72 39 39 39 39 Z"/>
+<path d="M 39 39 39 39 72 18 72 18 Z"/>
+<path d="M 72 18 72 18 110 10 110 10 72 18 Z"/>
+<path d="M 110 10 110 10 148 18 148 18 148 18 Z"/>
+<path d="M 148 18 148 18 181 39 181 39 Z"/>
+<path d="M 181 39 181 39 202 72 202 72 Z"/>
+<path d="M 202 72 202 72 210 110 210 110 202 72 Z"/>
+<path d="M 210 110 210 110 202 148 202 148 202 148 Z"/>
+<path d="M 202 148 202 148 181 181 181 181 Z"/>
+<path d="M 181 181 181 181 148 202 148 202 Z"/>
+<path d="M 148 202 148 202 110 210 110 210 148 202 Z"/>
+<path d="M 110 210 72 202 110 150 148 202 Z"/>
+<path d="M 202 72 210 110 202 148 150 110 Z"/>
+<path d="M 72 18 110 10 148 18 110 70 Z"/>
+<path d="M 18 148 10 110 18 72 70 110 Z"/>
+<path d="M 181 181 148 202 148 202 110 150 110 150 134 134 Z"/>
+<path d="M 202 148 202 148 181 181 134 134 150 110 150 110 Z"/>
+<path d="M 181 39 202 72 202 72 150 110 150 110 134 86 Z"/>
+<path d="M 148 18 148 18 181 39 134 86 110 70 110 70 Z"/>
+<path d="M 39 39 72 18 72 18 110 70 110 70 86 86 Z"/>
+<path d="M 18 72 18 72 39 39 86 86 70 110 70 110 Z"/>
+<path d="M 39 181 18 148 18 148 70 110 70 110 86 134 Z"/>
+<path d="M 72 202 72 202 39 181 86 134 110 150 110 150 Z"/>
+<path d="M 134 134 110 150 86 134 70 110 86 86 110 70 134 86 150 110 Z"/>
+<path d="M 294 10 296 10 296 18 289 18 289 18 Z"/>
+<path d="M 289 18 296 18 296 39 289 39 Z"/>
+<path d="M 289 39 296 39 296 72 289 72 Z"/>
+<path d="M 289 72 296 72 296 110 294 110 289 72 Z"/>
+<path d="M 294 110 296 110 296 148 289 148 289 148 Z"/>
+<path d="M 289 148 296 148 296 181 289 181 Z"/>
+<path d="M 289 181 296 181 296 202 289 202 Z"/>
+<path d="M 289 202 296 202 296 210 294 210 289 202 Z"/>
+<path d="M 296 18 296 10 381 110 Z"/>
+<path d="M 296 39 296 18 381 110 Z"/>
+<path d="M 296 72 296 39 381 110 Z"/>
+<path d="M 296 110 296 72 381 110 Z"/>
+<path d="M 296 148 296 110 381 110 Z"/>
+<path d="M 296 181 296 148 381 110 Z"/>
+<path d="M 296 202 296 181 381 110 Z"/>
+<path d="M 296 210 296 202 381 110 Z"/>
+<path d="M 289 72 294 110 289 148 259 110 Z"/>
+<path d="M 289 18 294 10 289 18 259 70 Z"/>
+<path d="M 289 181 289 202 289 202 259 150 259 150 259 134 Z"/>
+<path d="M 289 148 289 148 289 181 259 134 259 110 259 110 Z"/>
+<path d="M 289 39 289 72 289 72 259 110 259 110 259 86 Z"/>
+<path d="M 289 18 289 18 289 39 259 86 259 70 259 70 Z"/>
+<path d="M 530 110 568 202 530 210 Z"/>
+<path d="M 601 181 568 202 530 110 Z"/>
+<path d="M 622 148 601 181 530 110 Z"/>
+<path d="M 630 110 622 148 530 110 Z"/>
+<path d="M 622 72 630 110 530 110 Z"/>
+<path d="M 601 39 622 72 530 110 Z"/>
+<path d="M 568 18 601 39 530 110 Z"/>
+<path d="M 530 10 568 18 530 110 Z"/>
+<path d="M 492 18 530 10 530 110 Z"/>
+<path d="M 459 39 492 18 530 110 Z"/>
+<path d="M 438 72 459 39 530 110 Z"/>
+<path d="M 430 110 438 72 530 110 Z"/>
+<path d="M 438 148 430 110 530 110 Z"/>
+<path d="M 459 181 438 148 530 110 Z"/>
+<path d="M 492 202 459 181 530 110 Z"/>
+<path d="M 530 210 492 202 530 110 Z"/>
+<path d="M 110 294 110 296 72 296 72 289 72 289 Z"/>
+<path d="M 72 289 72 296 39 296 39 289 Z"/>
+<path d="M 39 289 39 296 18 296 18 289 Z"/>
+<path d="M 18 289 18 296 10 296 10 294 18 289 Z"/>
+<path d="M 210 294 210 296 202 296 202 289 202 289 Z"/>
+<path d="M 202 289 202 296 181 296 181 289 Z"/>
+<path d="M 181 289 181 296 148 296 148 289 Z"/>
+<path d="M 148 289 148 296 110 296 110 294 148 289 Z"/>
+<path d="M 110 381 72 296 110 296 Z"/>
+<path d="M 39 296 72 296 110 381 Z"/>
+<path d="M 18 296 39 296 110 381 Z"/>
+<path d="M 10 296 18 296 110 381 Z"/>
+<path d="M 202 296 210 296 110 381 Z"/>
+<path d="M 181 296 202 296 110 381 Z"/>
+<path d="M 148 296 181 296 110 381 Z"/>
+<path d="M 110 296 148 296 110 381 Z"/>
+<path d="M 110 294 72 289 110 259 148 289 Z"/>
+<path d="M 202 289 210 294 202 289 150 259 Z"/>
+<path d="M 181 289 148 289 148 289 110 259 110 259 134 259 Z"/>
+<path d="M 202 289 202 289 181 289 134 259 150 259 150 259 Z"/>
+<path d="M 39 289 18 289 18 289 70 259 70 259 86 259 Z"/>
+<path d="M 72 289 72 289 39 289 86 259 110 259 110 259 Z"/>
+
+
+
+</svg>

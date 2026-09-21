@@ -1,0 +1,47 @@
+{
+    "pc01001": {
+        "name": "PC 01.001  Wheel Cut Brilliant",
+        "author": "Hemrich, Gerald I",
+        "origin": "Gems & Min, Nov 66, p16",
+        "faceCount": 29,
+        "girdles": 16,
+        "symmetry": "4-fold, mirror-image symmetry; 64 index",
+        "indexWheel": "4-fold, mirror-image symmetry; 64 index",
+        "lengthWidthRatio": 1.0,
+        "tableWidthRatio": 0.401,
+        "culetWidthRatio": 0.401,
+        "pavilionWidthRatio": 0.426,
+        "crownWidthRatio": 0.173,
+        "volumeWidthCubedRatio": 0.19
+    },
+    "pc01002": {
+        "name": "PC 01.002  Spiral Brilliant",
+        "author": "Schreur, Clarence",
+        "origin": "Lapidary J, May 63, p301",
+        "faceCount": 65,
+        "girdles": 64,
+        "symmetry": "8-fold symmetry; 64 index",
+        "indexWheel": "8-fold symmetry; 64 index",
+        "lengthWidthRatio": 1.0,
+        "tableWidthRatio": 0.554,
+        "culetWidthRatio": 0.554,
+        "pavilionWidthRatio": 0.496,
+        "crownWidthRatio": 0.161,
+        "volumeWidthCubedRatio": 0.245
+    },
+    "pc01003": {
+        "name": "PC 01.003  Scintillator Brilliant",
+        "author": "Soukup, Edward J",
+        "origin": "Facet Cutter`s Handbk, (1962) p 63",
+        "faceCount": 129,
+        "girdles": 16,
+        "symmetry": "16-fold, mirror-image symmetry; 64 index",
+        "indexWheel": "16-fold, mirror-image symmetry; 64 index",
+        "lengthWidthRatio": 1.0,
+        "tableWidthRatio": 0.562,
+        "culetWidthRatio": 0.562,
+        "pavilionWidthRatio": 0.445,
+        "crownWidthRatio": 0.168,
+        "volumeWidthCubedRatio": 0.227
+    }
+}
