@@ -1,4 +1,8 @@
-# Gem-Cutting Diagram Generator
+# GemDiagramAI
+
+![GitHub last commit](https://img.shields.io/github/last-commit/Bissbert/GemDiagramAI)
+
+> Trains a conditional GAN on SVG gem-cutting diagrams and metadata, then generates new diagram images from metadata inputs.
 
 This repository prepares SVG gem-cutting diagrams and metadata as tensors, then
 builds a TensorFlow generator/discriminator training loop intended to produce
@@ -13,7 +17,36 @@ The image above is a contact sheet made from the repository's real prepared
 training tensor. It shows the kind of diagram this project processes; it is not
 claimed as output from a trained checkpoint.
 
+## Why
+
+Gem-cutting diagram generation is a niche problem with no off-the-shelf dataset or model. GemDiagramAI provides the full ML pipeline — data preparation, cGAN training on 512x512 images, and inference — so the workflow can be iterated on with real lapidary diagram data. The project is designed for Mac M1/M2 (uses `tensorflow-macos` and `tensorflow-metal`).
+
 ## Quick start
+
+```bash
+# Set up a virtual environment (required on Apple Silicon)
+pip install virtualenv
+virtualenv tf_m1_env
+source tf_m1_env/bin/activate
+pip install -r requirements.txt
+
+# 1. Prepare training data from SVG images + JSON metadata
+python prepare_data_for_training.py
+# Reads SVGs and a JSON metadata file; writes .npz files to training-data/
+
+# 2. Train the model
+python train_model.py
+# Saves generator checkpoints every 20 epochs and a final generator_model_final.h5
+
+# 3. Prepare generation inputs
+python prepare_data_for_generation.py --save_dir generation-data
+
+# 4. Generate new diagrams
+python run_model.py --generation_data_dir generation-data
+# Prompts for the path to a trained generator model (e.g. generator_model_final.h5)
+```
+
+### Verified local run
 
 The following commands were run successfully with the repository's existing
 `tf_m1_env` environment (Python 3.11.5, TensorFlow 2.14.0, Pillow 10.0.1, and
@@ -40,6 +73,16 @@ tf_m1_env/bin/python tools/render_parameter_grid.py
 The dependency-install setup in the original README is source-derived and was
 not reinstalled during this pass. A full training run and end-to-end inference
 are not presented as working; see [Known limitations](#known-limitations).
+
+## How it works
+
+- `model.py` — defines the cGAN architecture. The generator upsamples a 100-dimensional noise vector through two `UpSampling2D + Conv2D` blocks to produce 512x512 RGB images. The discriminator is a four-layer strided-convolution network with LeakyReLU and dropout. Both use Adam (lr=0.0002, beta=0.5).
+- `train_model.py` — orchestrates the adversarial training loop for 2000 epochs (configurable in `constants.py`), saving generator checkpoints every 20 epochs.
+- `data_utils.py` — preprocessing utilities for loading and normalizing SVG-derived image data.
+- `prepare_data_for_training.py` / `prepare_data_for_generation.py` — convert raw SVGs + metadata JSON into `.npz` arrays consumed by the training and inference scripts.
+- `run_model.py` — loads a saved generator and produces diagram images from metadata-conditioned inputs.
+- `constants.py` — central config: `IMAGE_SIZE=512`, `EPOCHS=2000`, `BATCH_SIZE=32`, `SAVE_INTERVAL=20`.
+- Training logs to TensorBoard (`./logs/`).
 
 ## Architecture and data flow
 
@@ -75,9 +118,9 @@ flowchart LR
 
 The project accepts SVG text and JSON metadata mappings. Text metadata is kept
 as text; numeric arrays are standardized. It cannot currently handle a
-metadata-conditioned generator call, zero-variance numeric columns without
-producing `NaN`, or a clean generation directory without the hard-coded stats
-files. Details and reproductions are in [Data preparation](docs/data-preparation.md),
+metadata-conditioned generator call, or a clean generation directory without
+the hard-coded stats files. Zero-variance numeric columns are now handled on
+the default branch. Details and reproductions are in [Data preparation](docs/data-preparation.md),
 [Inference](docs/inference.md), and [Bugs found](docs/BUGS-FOUND.md).
 
 ## Parameter surface
@@ -95,6 +138,10 @@ surface the current code actually supports, not a fabricated metadata sweep.
 | `BATCH_SIZE` | 32 | Number of samples used per update. |
 | `SAVE_INTERVAL` | 20 | Checkpoint modulus; epoch zero is also saved. |
 | `z_dim` | 100 | Width of the generator's only input noise vector. |
+
+## Configuration
+
+Edit `constants.py` to change image resolution, epoch count, batch size, or checkpoint frequency. All paths default to `training-data/` and `generation-data/` but can be overridden with CLI arguments.
 
 ## Measured results
 
@@ -137,11 +184,8 @@ elapsed-time output did not return cleanly, so no training-speed claim is made.
   call before an image is displayed.
 - `prepare_data_for_generation.py` ignores `--save_dir`, uses hard-coded stats
   filenames, and writes NPZ keys that do not match the downstream loader.
-- Constant numeric metadata columns divide by zero during standardization and
-  become `NaN`.
 - The discriminator is compiled before being marked non-trainable; direct
   discriminator fitting still changes its weights after combination.
-- `run_model.py` imports Matplotlib, but `requirements.txt` does not declare it.
 - The full prepared image tensor expands to 14.63 GiB, and the measured
   generator has 212,036,227 parameters. A complete training run was not timed.
 - No trained checkpoint or model-quality metric is committed. The images in
@@ -150,3 +194,11 @@ elapsed-time output did not return cleanly, so no training-speed claim is made.
 For the exact commands, observed outputs, and proposed-but-not-applied fixes,
 see [the documentation index](docs/README.md), [the measurement ledger](docs/measurement.md),
 and [the bug register](docs/BUGS-FOUND.md).
+
+## Status
+
+Experimental. The model architecture and training pipeline are implemented, but results depend on the quality and quantity of SVG training data supplied by the user. No pre-trained weights are included in the repository.
+
+## License
+
+MIT
