@@ -3,5 +3,6 @@ Image
 Pillow
 cairosvg
 numpy
+matplotlib
 tensorflow-macos
 tensorflow-metal

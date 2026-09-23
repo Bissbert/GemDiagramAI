@@ -42,4 +42,12 @@ def normalize_metadata(metadata_array):
     if not np.issubdtype(metadata_array.dtype, np.number):
         logging.warning('Non-numeric metadata detected. Skipping normalization.')
         return metadata_array
-    return (metadata_array - metadata_array.mean(axis=0)) / metadata_array.std(axis=0)
+    mean = metadata_array.mean(axis=0)
+    std = metadata_array.std(axis=0)
+    centered = metadata_array - mean
+    return np.divide(
+        centered,
+        std,
+        out=np.zeros_like(centered, dtype=np.float64),
+        where=std != 0,
+    )
