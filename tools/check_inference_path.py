@@ -5,12 +5,12 @@ run_model.py does three things this script reproduces without needing a
 trained checkpoint or a display:
 
   1. imports matplotlib.pyplot at module scope,
-  2. column_stacks every .npz in the generation directory,
-  3. calls generator.predict([z, combined_metadata]).
+  2. loads the (1, k) array from generation_metadata.npz,
+  3. calls generator.predict([z, metadata]).
 
-Step 3 is the interesting one: model.build_generator() returns a Sequential
-with a single (None, 100) input, so a two-element list is not a valid call.
-This script builds that generator and reports what each step actually does.
+Step 3 needs a generator with a metadata input. This script builds the
+conditioned generator train_model.py builds, and reports which calls it
+accepts.
 
 Usage:
     python tools/check_inference_path.py
@@ -52,18 +52,19 @@ def main():
 
     from model import build_generator, z_dim
 
-    generator = build_generator(z_dim)
+    meta_dim = 8  # numeric fields in the prepared dataset
+    generator = build_generator(z_dim, meta_dim)
     print("step 3: generator.predict signature")
     print(f"  generator inputs                             "
           f"{[list(t.shape) for t in generator.inputs]}")
 
     z = np.random.normal(0, 1, (1, z_dim)).astype("float32")
-    metadata = np.zeros((1, 13), dtype="float32")
+    metadata = np.zeros((1, meta_dim), dtype="float32")
 
-    check("predict(z)                       ",
-          lambda: generator.predict(z, verbose=0).shape)
-    check("predict([z, combined_metadata])  ",
+    check("predict([z, metadata])           ",
           lambda: generator.predict([z, metadata], verbose=0).shape)
+    check("predict(z), metadata omitted     ",
+          lambda: generator.predict(z, verbose=0).shape)
 
 
 if __name__ == "__main__":

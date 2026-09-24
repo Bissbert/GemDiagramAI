@@ -1,8 +1,8 @@
 tensorflow==2.14.0
-Image
+tensorflow-macos==2.14.0; sys_platform == "darwin"
+tensorflow-metal==1.1.0; sys_platform == "darwin"
+# TensorFlow 2.14 is built against numpy 1.x
+numpy>=1.23.5,<2
 Pillow
 cairosvg
-numpy
 matplotlib
-tensorflow-macos
-tensorflow-metal

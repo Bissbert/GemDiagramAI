@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 from PIL import Image
 from constants import IMAGE_SIZE
@@ -7,6 +8,9 @@ import cairosvg
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Written next to the training tensors by prepare_data_for_training.py
+METADATA_STATS_FILE = 'metadata_stats.json'
 
 
 def svg_to_png(svg_str):
@@ -20,21 +24,76 @@ def load_data(svg_files, metadata):
     img_data = np.array(img_data, dtype=np.float32)
     img_data = (img_data - 127.5) / 127.5
 
+    metadata_separated, stats = separate_metadata(metadata)
+    return img_data, metadata_separated, stats
+
+
+def load_metadata_stats(training_data_dir):
+    path = os.path.join(training_data_dir, METADATA_STATS_FILE)
+    if not os.path.exists(path):
+        raise SystemExit(f"{path} not found; run prepare_data_for_training.py "
+                         f"to (re)create the training data.")
+    with open(path) as f:
+        return json.load(f)
+
+
+def load_training_metadata(training_data_dir, keys):
+    """Stack the normalised numeric metadata columns in the given order."""
+    columns = [np.load(os.path.join(training_data_dir, f"training_data_meta_{key}.npz"))['arr_0']
+               for key in keys]
+    return np.column_stack(columns).astype(np.float32)
+
+
+def is_blank(value):
+    return value is None or (isinstance(value, str) and value.strip() == '')
+
+
+def numeric_column(values):
+    """Return values as float64 with blanks as NaN, or None if any non-blank
+    value is not a number."""
+    parsed = []
+    for value in values:
+        if is_blank(value):
+            parsed.append(np.nan)
+            continue
+        if isinstance(value, bool):
+            return None
+        try:
+            parsed.append(float(value))
+        except (TypeError, ValueError):
+            return None
+    column = np.array(parsed, dtype=np.float64)
+    if np.isnan(column).all():
+        return None
+    return column
+
+
+def separate_metadata(metadata):
+    """Split a list of metadata dicts into one array per field.
+
+    A field whose non-blank values are all numbers becomes a normalised float
+    column; its blanks are imputed with the field mean (0 after normalising).
+    Any other field stays text. Returns (arrays, stats), where stats lists the
+    numeric fields in order with the mean and std used to normalise them.
+    """
     logging.info("Converting metadata to separate arrays...")
-    # Convert metadata list of dictionaries to separate 2D arrays for each metadata type
-    # Ensure all metadata entries have expected keys and fill missing keys with blank values
-    expected_keys = metadata[0].keys()
-    for entry in metadata:
-        for key in expected_keys:
-            if key not in entry:
-                entry[key] = ''  # Fill with blank value
-    metadata_separated = {key: np.array([entry[key] for entry in metadata]) for key in metadata[0].keys()}
-
-    # Normalize each metadata type separately
-    for key, meta_array in metadata_separated.items():
-        metadata_separated[key] = normalize_metadata(meta_array)
-
-    return img_data, metadata_separated
+    keys = list(metadata[0].keys())
+    metadata_separated = {}
+    stats = {"keys": [], "mean": {}, "std": {}}
+    for key in keys:
+        values = [entry.get(key) for entry in metadata]
+        column = numeric_column(values)
+        if column is None:
+            logging.warning(f'Non-numeric metadata field "{key}"; kept as text.')
+            metadata_separated[key] = np.array(['' if is_blank(v) else v for v in values])
+            continue
+        mean = float(np.nanmean(column))
+        column[np.isnan(column)] = mean
+        stats["keys"].append(key)
+        stats["mean"][key] = mean
+        stats["std"][key] = float(column.std())
+        metadata_separated[key] = normalize_metadata(column)
+    return metadata_separated, stats
 
 
 def normalize_metadata(metadata_array):
@@ -51,3 +110,8 @@ def normalize_metadata(metadata_array):
         out=np.zeros_like(centered, dtype=np.float64),
         where=std != 0,
     )
+
+
+def normalize_value(value, mean, std):
+    """Normalise one raw metadata value with training-set statistics."""
+    return 0.0 if std == 0 else (value - mean) / std

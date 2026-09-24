@@ -32,11 +32,13 @@ def max_weight_delta(before, after):
     )
 
 
-def run_case(label, discriminator, batch_size, seed):
+def run_case(label, discriminator, batch_size, seed, meta_dim):
     import numpy as np
 
     rng = np.random.default_rng(seed)
     x = rng.normal(0, 1, (batch_size, 512, 512, 3)).astype("float32")
+    if meta_dim:
+        x = [x, rng.normal(0, 1, (batch_size, meta_dim)).astype("float32")]
     y = np.ones((batch_size, 1), dtype="float32")
 
     before = [w.copy() for w in discriminator.get_weights()]
@@ -54,24 +56,28 @@ def run_case(label, discriminator, batch_size, seed):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--meta-dim", type=int, default=8)
     args = parser.parse_args()
 
     from model import build_generator, build_discriminator, build_combined
     from model import img_shape, z_dim
 
-    control = build_discriminator(img_shape)
-    run_case("control (never combined)", control, args.batch_size, 0)
+    m = args.meta_dim
+    control = build_discriminator(img_shape, m)
+    run_case("control (never combined)", control, args.batch_size, 0, m)
 
-    generator = build_generator(z_dim)
-    subject = build_discriminator(img_shape)
+    generator = build_generator(z_dim, m)
+    subject = build_discriminator(img_shape, m)
     combined = build_combined(generator, subject)
-    run_case("subject (after build_combined)", subject, args.batch_size, 0)
+    run_case("subject (after build_combined)", subject, args.batch_size, 0, m)
 
     # Does training the combined model leak updates into the discriminator?
     import numpy as np
 
     rng = np.random.default_rng(1)
     z = rng.normal(0, 1, (args.batch_size, z_dim)).astype("float32")
+    if m:
+        z = [z, rng.normal(0, 1, (args.batch_size, m)).astype("float32")]
     y = np.ones((args.batch_size, 1), dtype="float32")
 
     d_before = [w.copy() for w in subject.get_weights()]
