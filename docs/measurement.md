@@ -11,7 +11,8 @@ sh tools/linux-run.sh training-data > media/captures/linux-run.txt
 
 [`tools/linux-run.sh`](../tools/linux-run.sh) starts `python:3.11-slim-bookworm`,
 mounts the repository and the prepared dataset read-only, copies the repository,
-installs the requirements, and runs each script in [`tools/`](../tools). The
+installs `requirements.txt` unmodified, runs the test suite, and runs each
+script in [`tools/`](../tools). The
 four PNGs in `media/` are written back through a second mount. The full output
 is [`media/captures/linux-run.txt`](../media/captures/linux-run.txt); every
 block below is taken from it.
@@ -32,30 +33,38 @@ the two contact sheets.
 
 ## Installing the requirements
 
-`requirements.txt` does not install on Linux as it stands:
-
-```
-unmodified requirements.txt: exit=1
-ERROR: Could not find a version that satisfies the requirement tensorflow-macos (from versions: none)
-```
-
-The script drops the `tensorflow-macos` and `tensorflow-metal` lines. The
-unpinned `numpy` then resolves to numpy 2, which TensorFlow 2.14 cannot import:
-
-```
-numpy 2.4.6
-import tensorflow: exit=1
-AttributeError: _ARRAY_API not found
-```
-
-Reinstalling with the constraint `numpy<2` works:
+`requirements.txt` installs unmodified. The Apple-only packages are skipped by
+their `sys_platform` markers, numpy is pinned below 2, and the unrelated
+`Image` package is gone (entries 6 and 9 in [Bugs found](BUGS-FOUND.md)):
 
 ```
 exit=0
+Django, Image, tensorflow-macos, tensorflow-metal installed: 0
 tensorflow 2.14.0 | numpy 1.26.4 | Pillow 12.3.0 | CairoSVG 2.9.1 | matplotlib 3.11.2
 ```
 
-Both problems are entry 6 in [Bugs found](BUGS-FOUND.md).
+Before those fixes, pip failed with `Could not find a version that satisfies
+the requirement tensorflow-macos`. With those two lines removed, numpy 2.4.6
+was installed and `import tensorflow` failed with
+`AttributeError: _ARRAY_API not found`.
+
+## Tests
+
+```
+23 passed, 4 warnings in 11.98s
+```
+
+The suite in [`tests/`](../tests) uses 16 × 16 models and synthetic or fixture
+data. [`tests/docker.sh`](../tests/docker.sh) runs it on its own. For every
+fixed entry, reverting the fix makes its tests fail:
+
+| Reverted | Failing tests |
+|---|---|
+| `model.py` to before entry 2 | 9, including all of `tests/test_model.py` and the end-to-end run |
+| `histogram_freq=0` back to `1` (entry 7) | `test_train_disables_tensorboard_histograms` |
+| `prepare_data_for_generation.py` to before entry 4 | 3 in `tests/test_pipeline.py` |
+| `requirements.txt` to before entries 6 and 9 | 5 in `tests/test_requirements.py` |
+| blanks no longer imputed (entry 8) | 2 in `tests/test_data_utils.py` |
 
 ## Configuration
 
@@ -86,6 +95,16 @@ The metadata has **13** fields. **3** are numeric and standardized
 (`faceCount`, `lengthWidthRatio`, `volumeWidthCubedRatio`); the other 10 are
 stored as text. `indexWheel` and `symmetry` hold identical values.
 
+This copy predates the fix for entry 8, so it has no `metadata_stats.json`:
+
+```
+conditioning  : no metadata_stats.json (prepared before it existed)
+```
+
+Five of its text fields hold only numbers and blanks. Preparing the source
+SVGs again parses them as numeric, which gives 8 numeric fields. The source
+SVGs are not part of this run, so the 3-field copy is what is measured here.
+
 ## Preparing the fixtures
 
 The three fixture SVGs in `tools/fixtures/` were prepared with NumPy runtime
@@ -94,10 +113,16 @@ warnings promoted to errors:
 ```
 exit=0 (RuntimeWarning promoted to error)
 npz files: 14
+stats file: metadata_stats.json
 ```
 
-With only three rows, **8** of the 13 fields parse as numeric. All three share
-one `lengthWidthRatio`, which now normalizes to zeros instead of `NaN`:
+**8** of the 13 fields parse as numeric, and all 8 are used for conditioning:
+
+```
+conditioning  : (3, 8) dtype=float64 from metadata_stats.json
+```
+
+All three share one `lengthWidthRatio`, which now normalizes to zeros instead of `NaN`:
 
 ```
 lengthWidthRatio         float64   yes              0       1  mean=+0.0000 std=0.0000 min=+0.000 max=+0.000
@@ -107,17 +132,18 @@ That is the fix from entry 1 in [Bugs found](BUGS-FOUND.md).
 
 ## The model
 
-`tools/measure_model.py` builds the three Keras models:
+`tools/measure_model.py` builds the three conditioned Keras models with 8
+metadata fields:
 
 ```
 === after_build_combined ===
-  generator      inputs=[[None, 100]] total=212,036,227 trainable=212,035,843
-  discriminator  inputs=[[None, 512, 512, 3]] total=1,471,809 trainable=0
-  combined       inputs=[[None, 100]] total=213,508,036 trainable=212,035,843
+  generator      inputs=[[None, 100], [None, 8]] total=228,813,443 trainable=228,813,059
+  discriminator  inputs=[[None, 512, 512, 3], [None, 8]] total=1,471,817 trainable=0
+  combined       inputs=[[None, 100], [None, 8]] total=230,285,260 trainable=228,813,059
 ```
 
-The generator's first layer, `Dense [None, 2097152]`, has **211,812,352** of
-those parameters.
+The generator's first layer, `Dense [None, 2097152]` after the 108-wide
+noise-plus-metadata concatenation, has **228,589,568** of those parameters.
 
 ## Training wiring
 
@@ -125,8 +151,8 @@ those parameters.
 example and compares weights before and after:
 
 ```
-control (never combined)           trainable_params=1,470,913  max_weight_delta=1.896e-01  learned=yes
-subject (after build_combined)     trainable_params=        0  max_weight_delta=2.018e-01  learned=yes
+control (never combined)           trainable_params=1,470,921  max_weight_delta=1.886e-01  learned=yes
+subject (after build_combined)     trainable_params=        0  max_weight_delta=1.890e-01  learned=yes
 combined.fit -> discriminator      max_weight_delta=0.000e+00  frozen=yes
 combined.fit -> generator          max_weight_delta=2.000e-01  learned=yes
 ```
@@ -137,41 +163,50 @@ model. That is the intended setup; see entry 3 in [Bugs found](BUGS-FOUND.md).
 ## Inference
 
 `tools/check_inference_path.py` imports what `run_model.py` imports and calls
-the generator both ways:
+the conditioned generator both ways:
 
 ```
 matplotlib.pyplot                            installed
 requirements.txt lists matplotlib: True
-generator inputs                             [[None, 100]]
-predict(z)                                   ok     (1, 512, 512, 3)
-predict([z, combined_metadata])              FAILS  ValueError: Layer "sequential" expects 1 input(s), but it received 2 input tensors.
+generator inputs                             [[None, 100], [None, 8]]
+predict([z, metadata])                       ok     (1, 512, 512, 3)
+predict(z), metadata omitted                 FAILS  ValueError: ... Layer "generator" expects 2 input(s), but it received 1 input tensors.
 ```
 
-`prepare_data_for_generation.py --save_dir <new dir>`, run from an empty
-working directory:
+`prepare_data_for_generation.py --save_dir <new dir> --training_data_dir <fixture output>`,
+run from an empty working directory. The eight answers are
+`65, 16, 1.0, blank, blank, 0.5, 0.17, 0.2`:
 
 ```
-exit=1
-FileNotFoundError: [Errno 2] No such file or directory: 'training_data_meta_meta1.npz'
-working directory now holds: gem_cutting_diagrams.log
+exit=0
+working directory now holds: gem_cutting_diagrams.log output
+output/ holds: generation_metadata.npz
+arr_0 (1, 8) [[-0.226, -0.707, 0.0, 0.0, 0.0, 1.5, 0.542, -0.903]]
 ```
+
+The two blank answers and the constant `lengthWidthRatio` normalize to 0. The
+log file is the scripts' usual `gem_cutting_diagrams.log` in the working
+directory.
 
 ## One training epoch
 
 `tools/measure_training_step.py --epochs 1 --batch-size 1 --images random` runs
-`model.train` for one epoch on random images:
+`model.train` for one epoch at full size on random images, with 8 random
+metadata fields:
 
 ```
-1/1 [==============================] - 1s 665ms/step
-...
-tensorflow.python.framework.errors_impl.ResourceExhaustedError: ... OOM when allocating tensor with shape[209715200,30] and type double ... [Op:OneHot]
-exit=1 wall=6s
+0 [D loss: 0.936586, acc.: 0.00%] [G loss: 0.920787]
+
+total       : 5.06 s for 1 epochs
+per epoch   : 5.06 s
+projected   : 2.81 h for constants.EPOCHS = 2000
+checkpoint  : generator_model_epoch_0.h5 915,291,768 bytes (872.9 MiB)
+exit=0 wall=6s
 ```
 
-The discriminator steps finish. The first `combined.fit` then fails inside the
-TensorBoard histogram callback, and no checkpoint is written. This is entry 7 in
-[Bugs found](BUGS-FOUND.md). Because the loop cannot finish one epoch, no
-training time is reported.
+Before the fix for entry 7 this failed after 6 s:
+`OOM when allocating tensor with shape[209715200,30] and type double ... [Op:OneHot]`.
+The projection is for a batch of 1, not the default 32.
 
 ## Media
 
@@ -195,7 +230,10 @@ trained generator.
 
 ## Not measured
 
-- Training time, and the quality of a trained generator. Training stops in the
-  first epoch (entry 7), and no trained checkpoint is committed.
-- Metadata-conditioned generation. The generator takes one input (entry 2).
+- Training time at the default batch size, and the quality of a trained
+  generator. No full training run was done, and no trained checkpoint is
+  committed.
+- Whether the metadata controls the generated diagram in a useful way. The
+  tests show that the metadata changes the output of an untrained model. They
+  say nothing about a trained one.
 - The macOS `tensorflow-metal` path. The target here is Linux.

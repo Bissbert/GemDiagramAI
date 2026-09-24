@@ -6,10 +6,11 @@
 
 This repository prepares SVG gem-cutting diagrams and metadata as tensors, then
 builds a TensorFlow generator/discriminator training loop intended to produce
-new diagrams. The current implementation is best understood as an experimental
-GAN-shaped pipeline: the metadata is prepared and loaded, but the generator
-actually accepts only a 100-value noise vector, so metadata-conditioned
-generation is not working yet.
+new diagrams. The generator and discriminator are conditioned on the numeric
+metadata fields: the generator takes a 100-value noise vector plus the
+normalized metadata, and the discriminator judges each image against the
+metadata it should match. The pipeline runs end to end, but no trained
+checkpoint or quality measurement exists yet.
 
 ![Real prepared gem-cutting diagrams](media/dataset-samples.png)
 
@@ -19,7 +20,7 @@ claimed as output from a trained checkpoint.
 
 ## Why
 
-Gem-cutting diagram generation is a niche problem with no off-the-shelf dataset or model. GemDiagramAI provides the full ML pipeline — data preparation, cGAN training on 512x512 images, and inference — so the workflow can be iterated on with real lapidary diagram data. `requirements.txt` targets Apple Silicon (`tensorflow-macos` and `tensorflow-metal`); on Linux, install it as shown below.
+Gem-cutting diagram generation is a niche problem with no off-the-shelf dataset or model. GemDiagramAI provides the full ML pipeline — data preparation, cGAN training on 512x512 images, and inference — so the workflow can be iterated on with real lapidary diagram data. `requirements.txt` installs as-is on Linux and on macOS; the Apple Silicon packages (`tensorflow-macos`, `tensorflow-metal`) are only installed on macOS.
 
 ## Quick start
 
@@ -27,31 +28,40 @@ Gem-cutting diagram generation is a niche problem with no off-the-shelf dataset 
 python3 -m venv venv
 . venv/bin/activate
 
-# On macOS (Apple Silicon):
 pip install -r requirements.txt
-# On Linux, requirements.txt fails as-is (see docs/BUGS-FOUND.md, entry 6):
-grep -vE '^tensorflow-(macos|metal)$' requirements.txt > /tmp/req.txt
-pip install -r /tmp/req.txt 'numpy<2'
 
 # 1. Prepare training data from SVG images + JSON metadata
 python prepare_data_for_training.py
-# Reads SVGs and a JSON metadata file; writes .npz files to training-data/
+# Reads SVGs and a JSON metadata file; writes .npz files and
+# metadata_stats.json (the numeric fields and their statistics) to training-data/
 
 # 2. Train the model
 python train_model.py
-# Meant to save generator checkpoints every 20 epochs and a final
-# generator_model_final.h5. It currently runs out of memory in the first
-# epoch (docs/BUGS-FOUND.md, entry 7).
+# Conditions on the fields in metadata_stats.json. Saves generator checkpoints
+# every 20 epochs and a final generator_model_final.h5 in the working directory.
+# --epochs, --batch_size and --save_interval override constants.py.
 
 # 3. Prepare generation inputs
 python prepare_data_for_generation.py --save_dir generation-data
+# Prompts once per numeric field (blank = training mean); writes
+# generation-data/generation_metadata.npz
 
 # 4. Generate new diagrams
-python run_model.py --generation_data_dir generation-data
-# Prompts for the path to a trained generator model (e.g. generator_model_final.h5)
+python run_model.py --generation_data_dir generation-data \
+    --model generator_model_final.h5 --output diagram.png
+# Without --model it prompts for the path; without --output it displays the image.
 ```
 
-Steps 2 to 4 do not work end to end yet; see [Known limitations](#known-limitations).
+### Tests
+
+```sh
+sh tests/docker.sh
+```
+
+This installs `requirements.txt` unmodified in a `python:3.11-slim-bookworm`
+container and runs the pytest suite in `tests/`. The suite uses 16 × 16
+models and synthetic data and takes about 12 s after installation. It includes
+an end-to-end run from the fixture SVGs to a generated PNG.
 
 ### Linux container run
 
@@ -62,20 +72,21 @@ Everything in [How this was measured](docs/measurement.md) runs in a
 sh tools/linux-run.sh training-data > media/captures/linux-run.txt
 ```
 
-It prepares the three fixture SVGs in `tools/fixtures/`, measures the model and
-the prepared dataset, runs the training and inference checks, and re-renders
+It installs `requirements.txt`, runs the tests, prepares the three fixture SVGs
+in `tools/fixtures/`, measures the model and the prepared dataset, runs the
+training and inference checks, and re-renders
 the images in `media/`. The output of the last run is
 [`media/captures/linux-run.txt`](media/captures/linux-run.txt).
 
 ## How it works
 
-- `model.py` — defines the GAN architecture. Metadata is not yet a generator input. The generator upsamples a 100-dimensional noise vector through two `UpSampling2D + Conv2D` blocks to produce 512x512 RGB images. The discriminator is a four-layer strided-convolution network with LeakyReLU and dropout. Both use Adam (lr=0.0002, beta=0.5).
-- `train_model.py` — orchestrates the adversarial training loop for 2000 epochs (configurable in `constants.py`), saving generator checkpoints every 20 epochs.
-- `data_utils.py` — preprocessing utilities for loading and normalizing SVG-derived image data.
-- `prepare_data_for_training.py` / `prepare_data_for_generation.py` — convert raw SVGs + metadata JSON into `.npz` arrays consumed by the training and inference scripts.
-- `run_model.py` — loads a saved generator and calls it with noise plus metadata, a call the one-input generator currently rejects.
+- `model.py` — defines the conditional GAN. The generator concatenates a 100-dimensional noise vector with the metadata vector and upsamples it through two `UpSampling2D + Conv2D` blocks to produce 512x512 RGB images. The discriminator is a four-layer strided-convolution network with LeakyReLU and dropout; the metadata joins its flattened features before the output layer. Both use Adam (lr=0.0002, beta=0.5).
+- `train_model.py` — orchestrates the adversarial training loop for 2000 epochs (configurable in `constants.py` or on the command line), saving generator checkpoints every 20 epochs.
+- `data_utils.py` — preprocessing utilities for loading SVG-derived image data and splitting, parsing and normalizing the metadata fields.
+- `prepare_data_for_training.py` / `prepare_data_for_generation.py` — convert raw SVGs + metadata JSON into `.npz` arrays and `metadata_stats.json`, and turn metadata values typed at generation time into the normalized vector the generator expects.
+- `run_model.py` — loads a saved generator, calls it with noise plus the generation metadata, and displays or saves the image.
 - `constants.py` — central config: `IMAGE_SIZE=512`, `EPOCHS=2000`, `BATCH_SIZE=32`, `SAVE_INTERVAL=20`.
-- Training logs to TensorBoard (`./logs/`), with weight histograms on every step.
+- Training logs losses and the graph to TensorBoard (`./logs/`). Weight histograms are off; the generator's first `Dense` kernel is too large for them.
 
 ## Architecture and data flow
 
@@ -85,34 +96,36 @@ flowchart LR
     JSON["metadata JSON"] --> PREP
     PREP --> NPZ["training-data/*.npz<br/>images + separate fields"]
     NPZ --> TRAIN["train_model.py<br/>model.train"]
-    Z["random noise<br/>shape (None, 100)"] --> GEN["generator<br/>Dense + upsampling"]
+    PREP --> STATS["metadata_stats.json<br/>numeric fields, mean, std"]
+    Z["random noise<br/>shape (None, 100)"] --> GEN["generator<br/>concat + Dense + upsampling"]
+    META["metadata<br/>shape (None, k)"] --> GEN
     GEN --> IMG["512 × 512 × 3<br/>tanh image"]
     IMG --> DISC["discriminator"]
+    META --> DISC
     DISC --> COMBINED["combined loss"]
     COMBINED --> TRAIN
-    NPZ --> INFERDATA["prepare_data_for_generation.py"]
-    INFERDATA --> INFER["run_model.py"]
-    INFER --> FAIL["predict([z, metadata])<br/>currently rejected"]
+    STATS --> INFERDATA["prepare_data_for_generation.py"]
+    INFERDATA --> INFER["run_model.py<br/>predict([z, metadata])"]
+    INFER --> OUT["PNG or display"]
 
     style PREP fill:#1f6feb,stroke:#58a6ff,color:#fff
     style GEN fill:#238636,stroke:#3fb950,color:#fff
     style TRAIN fill:#8250df,stroke:#bc8cff,color:#fff
-    style FAIL fill:#da3633,stroke:#f85149,color:#fff
 ```
 
 ## What each script does today
 
 | Script | Inputs | Output | Today |
 |---|---|---|---|
-| `prepare_data_for_training.py` | SVG directory + metadata JSON | image and metadata NPZ files | Works; the fixtures prepare cleanly. |
-| `train_model.py` | prepared training directory | periodic and final generator H5 files | Models build; the first epoch runs out of memory in the TensorBoard callback. |
-| `prepare_data_for_generation.py` | two interactive numeric values | normalized generation NPZ | Stops on hard-coded missing stats in a clean directory. |
-| `run_model.py` | generator H5 + generation NPZ files | displayed generated image | The generator rejects the two-input prediction call. |
+| `prepare_data_for_training.py` | SVG directory + metadata JSON | image and metadata NPZ files, `metadata_stats.json` | Works; the fixtures prepare cleanly with 8 numeric fields. |
+| `train_model.py` | prepared training directory | periodic and final generator H5 files | Works; one full-size epoch with a batch of 1 takes about 5 s in the container. |
+| `prepare_data_for_generation.py` | one value per numeric field + `metadata_stats.json` | `generation_metadata.npz` in `--save_dir` | Works from a clean directory. |
+| `run_model.py` | generator H5 + `generation_metadata.npz` | displayed or saved image | Works; the tests generate a PNG from a freshly trained tiny model. |
 
-The project accepts SVG text and JSON metadata mappings. Text metadata is kept
-as text; numeric arrays are standardized. It cannot currently handle a
-metadata-conditioned generator call, or a clean generation directory without
-the hard-coded stats files. Constant numeric columns normalize to zeros. Details and reproductions are in [Data preparation](docs/data-preparation.md),
+The project accepts SVG text and JSON metadata mappings. A field whose
+non-blank values are all numbers is standardized, with blanks set to the field
+mean. Other fields are kept as text and not used for conditioning. Constant
+numeric columns normalize to zeros. Details and reproductions are in [Data preparation](docs/data-preparation.md),
 [Inference](docs/inference.md), and [Bugs found](docs/BUGS-FOUND.md).
 
 ## Parameter surface
@@ -129,7 +142,8 @@ surface the current code actually supports, not a fabricated metadata sweep.
 | `EPOCHS` | 2000 | Number of iterations requested by the training script. |
 | `BATCH_SIZE` | 32 | Number of samples used per update. |
 | `SAVE_INTERVAL` | 20 | Checkpoint modulus; epoch zero is also saved. |
-| `z_dim` | 100 | Width of the generator's only input noise vector. |
+| `z_dim` | 100 | Width of the generator's noise input. |
+| metadata width | 8 | Numeric fields in `metadata_stats.json`: 8 for the fixtures and for a dataset prepared with this code. |
 
 ## Configuration
 
@@ -144,12 +158,13 @@ From the Linux container run in [How this was measured](docs/measurement.md):
 | Prepared diagrams | 4,992 |
 | Prepared image tensor | `(4992, 512, 512, 3)` float32 |
 | Expanded image tensor | 15,703,474,304 bytes (14.63 GiB) |
-| Stored metadata fields | 13, with 3 numeric fields |
-| Generator parameters | 212,036,227 |
-| Discriminator parameters | 1,471,809 |
-| Combined-model parameters | 213,508,036 |
-| Unconditioned generator output | `(1, 512, 512, 3)` |
-| One training epoch, batch of 1 | Out of memory after 6 s; no checkpoint |
+| Stored metadata fields | 13; 3 numeric in the prepared copy, which predates the blank-field fix; 8 numeric in the fixtures |
+| Generator parameters (8 metadata fields) | 228,813,443 |
+| Discriminator parameters | 1,471,817 |
+| Combined-model parameters | 230,285,260 |
+| Conditioned generator output | `(1, 512, 512, 3)` |
+| One training epoch, batch of 1 | 5.06 s; 872.9 MiB checkpoint |
+| Test suite | 23 passed |
 
 ## Repository layout
 
@@ -160,31 +175,26 @@ From the Linux container run in [How this was measured](docs/measurement.md):
 | `prepare_data_for_training.py` | Interactive SVG/JSON to NPZ preparation. |
 | `prepare_data_for_generation.py` | Interactive generation metadata preparation. |
 | `train_model.py` | Loads NPZ data and saves generator checkpoints. |
-| `run_model.py` | Loads a generator and attempts to display one prediction. |
+| `run_model.py` | Loads a generator and displays or saves one prediction. |
+| `tests/` | pytest suite and `docker.sh`, which runs it in Linux. |
 | `docs/` | Subsystem write-ups, measurements, and bug reproductions. |
 | `tools/` | Measurement and media-rendering scripts plus small fixtures. |
 | `media/` | Generated contact sheets and preprocessing diagrams. |
 
 ## Known limitations
 
-- Metadata is not connected to the generator. `train_model.py` loads it, but the
-  generator's signature is only `(None, 100)`.
-- `run_model.py` passes noise and metadata as two inputs, so Keras rejects the
-  call before an image is displayed.
-- `prepare_data_for_generation.py` ignores `--save_dir`, uses hard-coded stats
-  filenames, and writes NPZ keys that do not match the downstream loader.
-- `requirements.txt` does not install on Linux: `tensorflow-macos` has no Linux
-  wheel, and the unpinned `numpy` resolves to numpy 2, which TensorFlow 2.14
-  cannot import. Install with `numpy<2` as in the quick start.
-- Training runs out of memory in the first epoch. `histogram_freq=1` on the
-  TensorBoard callback makes it histogram the 209,715,200-value first `Dense`
-  kernel, which needs about 50 GB.
-- The full prepared image tensor expands to 14.63 GiB in memory.
+- Data prepared before `metadata_stats.json` existed must be prepared again;
+  `train_model.py` and `prepare_data_for_generation.py` stop and say so.
+- Checkpoints from before conditioning take noise only. `run_model.py` still
+  loads them and generates from noise, with a warning.
+- The full prepared image tensor expands to 14.63 GiB in memory, and
+  `train_model.py` loads all of it.
 - No trained checkpoint or model-quality metric is committed. The images in
   `media/` are real source/training diagrams and preprocessing outputs.
 
-The commands, outputs and fix status for each of these are in
-[the bug register](docs/BUGS-FOUND.md) and [the measurement page](docs/measurement.md).
+Fixed bugs, with their reproductions and regression tests, are in
+[the bug register](docs/BUGS-FOUND.md). Measurements are on
+[the measurement page](docs/measurement.md).
 
 ## Status
 
