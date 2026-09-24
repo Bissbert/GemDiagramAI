@@ -1,183 +1,223 @@
-# Bugs found during the documentation pass
+# Bugs found
 
 [← back to the overview](../README.md)
 
-This pass did not change the tracked implementation. The entries below record
-behaviour reproduced with the commands shown, followed by the fix that would
-normally be made.
+Each entry below was reproduced with the command shown and reviewed. Two were
+fixed on `master`. Two are still open because the fix needs a design decision.
+One was rejected as intended behaviour. Two more turned up when everything was
+re-run in a Linux container (see [How this was measured](measurement.md)).
 
-## Metadata normalization divides by zero
+| # | Entry | Status |
+|---|---|---|
+| 1 | Metadata normalization divides by zero | Fixed in [`08be6ff`](https://github.com/Bissbert/GemDiagramAI/commit/08be6ff) |
+| 2 | Metadata never conditions the generator | Open |
+| 3 | Discriminator compiled before being frozen | Not a bug: intended GAN wiring |
+| 4 | Generation preparation ignores `--save_dir` | Open |
+| 5 | `matplotlib` not declared | Fixed in [`438f225`](https://github.com/Bissbert/GemDiagramAI/commit/438f225) |
+| 6 | `requirements.txt` does not install on Linux | Open |
+| 7 | TensorBoard histograms exhaust memory in the first epoch | Open |
 
-**File and line:** `data_utils.py:40-45`
+The commands below run inside the container that
+[`tools/linux-run.sh`](../tools/linux-run.sh) sets up, from a copy of the
+repository.
 
-**What happens:** numeric metadata with zero standard deviation is divided by
-zero and becomes `NaN`. The three-fixture quick start has a constant
-`lengthWidthRatio` column, so the preparation run emits a NumPy runtime warning
-and the measurement script reports that field as all `NaN`.
+## 1. Metadata normalization divides by zero
 
-**Reproduce:**
+**Status:** fixed in [`08be6ff`](https://github.com/Bissbert/GemDiagramAI/commit/08be6ff).
+
+**File:** `data_utils.py:40-53` (`normalize_metadata`)
+
+**What happened:** numeric metadata with zero standard deviation was divided by
+zero and became `NaN`. The three fixture SVGs share one `lengthWidthRatio`, so
+preparing them emitted a NumPy `RuntimeWarning` and stored that field as all
+`NaN`.
+
+**What changed:** the mean and standard deviation are computed once and the
+division uses `np.divide(..., out=zeros, where=std != 0)`. A constant column now
+normalizes to finite zeros.
+
+**Check:**
 
 ```sh
-quickstart_dir=$(mktemp -d /tmp/gemdiagram-bug.XXXXXX)
+mkdir /tmp/fx
 printf '%s\n%s\n' "$PWD/tools/fixtures/svg" "$PWD/tools/fixtures/metadata.json" |
-  tf_m1_env/bin/python prepare_data_for_training.py --save_dir "$quickstart_dir"
-tf_m1_env/bin/python tools/measure_dataset.py --data-dir "$quickstart_dir"
+  python3 -W error::RuntimeWarning prepare_data_for_training.py --save_dir /tmp/fx
+python3 tools/measure_dataset.py --data-dir /tmp/fx
 ```
 
-**Fix I would have made:** preserve a zero-valued normalized column, or reject
-it explicitly, instead of dividing by zero.
+With warnings promoted to errors the preparation exits 0 and writes 14 NPZ
+files. `lengthWidthRatio` is reported as `std=0.0000 min=+0.000 max=+0.000`.
 
-```diff
-diff --git a/data_utils.py b/data_utils.py
-@@
--    return (metadata_array - metadata_array.mean(axis=0)) / metadata_array.std(axis=0)
-+    mean = metadata_array.mean(axis=0)
-+    std = metadata_array.std(axis=0)
-+    return np.divide(metadata_array - mean, std, out=np.zeros_like(metadata_array),
-+                     where=std != 0)
-```
+## 2. Metadata never conditions the generator
 
-## Metadata is collected but never conditions the generator
+**Status:** open. Conditioning needs decisions about the generator
+architecture, the metadata schema and checkpoint compatibility, so no code was
+changed.
 
-**File and line:** `model.py:26-49`, `model.py:100-124`, and
-`train_model.py:28-44`
+**Files:** `model.py:26-49`, `model.py:100-160`, `train_model.py:28-44`,
+`run_model.py`
 
 **What happens:** the generator has one input, the 100-value noise vector.
-`train_model.py` loads and column-stacks metadata, but `model.train` never reads
-its `metadata` argument. The repository therefore does not currently implement
-the conditional input described by the original README.
+`train_model.py` loads and column-stacks the metadata, but `model.train` never
+reads its `metadata` argument. `run_model.py` then calls the generator with
+noise and metadata, which Keras rejects.
 
 **Reproduce:**
 
 ```sh
-tf_m1_env/bin/python tools/check_inference_path.py
+python3 tools/check_inference_path.py
 ```
 
-The command reports `generator inputs [[None, 100]]`; `predict(z)` succeeds and
-`predict([z, combined_metadata])` fails because the model expects one input.
-
-**Fix I would have made:** define a second metadata input, combine it with the
-noise path in the generator, and pass the same two-input signature through
-training and inference.
-
-```diff
-diff --git a/model.py b/model.py
-@@
--def build_generator(z_dim):
-+def build_generator(z_dim, metadata_dim):
-+    noise = Input(shape=(z_dim,))
-+    metadata = Input(shape=(metadata_dim,))
-+    inputs = Concatenate()([noise, metadata])
-@@
--    return model
-+    return Model([noise, metadata], model(inputs))
+```
+generator inputs                             [[None, 100]]
+predict(z)                                   ok     (1, 512, 512, 3)
+predict([z, combined_metadata])              FAILS  ValueError: Layer "sequential" expects 1 input(s), but it received 2 input tensors.
 ```
 
-## The discriminator is marked frozen after it was compiled
+**Possible fix:** give the generator a second metadata input, combine it with
+the noise path, and use the same two-input signature in training and
+inference.
 
-**File and line:** `model.py:51-63`, `model.py:94-96`, and
-`model.py:126-128`
+## 3. Discriminator compiled before being frozen
 
-**What happens:** `build_combined` sets `discriminator.trainable = False`, but
-the discriminator was already compiled. The training-wiring measurement found
-zero current trainable parameters after combining while a direct
-`discriminator.fit` still changed weights.
+**Status:** not a bug. This entry was reviewed and rejected; nothing was
+changed.
 
-**Reproduce:**
+**Files:** `model.py:51-63`, `model.py:94-96`
+
+**What was reported:** `build_combined` sets `discriminator.trainable = False`
+after the discriminator was compiled, and the standalone `discriminator.fit`
+still changes weights afterwards.
+
+**Why that is intended:** this is the usual Keras GAN setup. The discriminator
+is compiled while trainable, so its own `fit` calls learn. The combined model
+is compiled after the flag is cleared, so `combined.fit` only updates the
+generator. Keras keeps the trainable state each model had when it was compiled.
+Recompiling the discriminator while frozen would stop it learning.
+
+The wiring check shows exactly those two phases:
 
 ```sh
-tf_m1_env/bin/python tools/check_training_wiring.py --batch-size 1
+python3 tools/check_training_wiring.py --batch-size 1
 ```
 
-The run reports `trainable_params=0` with `learned=yes` for the subject after
-`build_combined`, while `combined.fit` correctly reports the discriminator as
-frozen.
-
-**Fix I would have made:** keep separately compiled discriminator and combined
-training views, or recompile the discriminator after changing its trainable
-state before calling `fit`.
-
-```diff
-diff --git a/model.py b/model.py
-@@
--    discriminator.trainable = False
-+    discriminator.trainable = True
-+    discriminator.compile(
-+        loss='binary_crossentropy',
-+        optimizer=tf.keras.optimizers.legacy.Adam(0.0002, 0.5),
-+        metrics=['accuracy'])
-+    discriminator.trainable = False
-    model = Sequential([generator, discriminator])
+```
+control (never combined)           trainable_params=1,470,913  max_weight_delta=1.896e-01  learned=yes
+subject (after build_combined)     trainable_params=        0  max_weight_delta=2.018e-01  learned=yes
+combined.fit -> discriminator      max_weight_delta=0.000e+00  frozen=yes
+combined.fit -> generator          max_weight_delta=2.000e-01  learned=yes
 ```
 
-## Generation preparation does not write to its requested directory
+## 4. Generation preparation ignores `--save_dir`
 
-**File and line:** `prepare_data_for_generation.py:25`,
-`prepare_data_for_generation.py:32-36`
+**Status:** open. The fix needs a decision about where the training statistics
+live and which NPZ keys the generation files use, so no code was changed.
 
-**What happens:** `--save_dir` is parsed but ignored. The script then looks for
-the hard-coded files `training_data_meta_meta1.npz` and
-`training_data_meta_meta2.npz`, and writes `generation_metadata.npz` in the
-current working directory. In a clean directory the first lookup fails before
-the output is written.
+**Files:** `prepare_data_for_generation.py:25`, `prepare_data_for_generation.py:32-36`,
+`run_model.py:32`
 
-**Reproduce:**
+**What happens:** `--save_dir` is parsed and then never used. The script reads
+the hard-coded relative files `training_data_meta_meta1.npz` and
+`training_data_meta_meta2.npz`, and writes `generation_metadata.npz` to the
+current directory with the keys `meta1` and `meta2`. `run_model.py` reads
+`arr_0`.
+
+**Reproduce**, from an empty working directory:
 
 ```sh
-repo_dir=$PWD
-failure_dir=$(mktemp -d /tmp/gemdiagram-generation-failure.XXXXXX)
-cd "$failure_dir"
+mkdir /tmp/gen && cd /tmp/gen
 printf '0.5\n0.8\n' |
-  PYTHONPATH="$repo_dir" "$repo_dir/tf_m1_env/bin/python" \
-  "$repo_dir/prepare_data_for_generation.py" --save_dir "$failure_dir/output"
+  PYTHONPATH=/tmp/gd python3 /tmp/gd/prepare_data_for_generation.py --save_dir /tmp/gen/out
 ```
 
-The command raises `FileNotFoundError` for
-`training_data_meta_meta1.npz`. If those files existed, the output call still
-uses the current directory and saves named keys (`meta1`, `meta2`) rather than
-the `arr_0` key expected by the training-data loader pattern.
-
-**Fix I would have made:** resolve the stats files and output path under
-`args.save_dir`, and use one documented NPZ key convention end to end.
-
-```diff
-diff --git a/prepare_data_for_generation.py b/prepare_data_for_generation.py
-@@
--    meta1_normalized = normalize_metadata_using_training_stats(meta1, "training_data_meta_meta1.npz")
-+    meta1_normalized = normalize_metadata_using_training_stats(
-+        meta1, os.path.join(args.save_dir, "training_data_meta_meta1.npz"))
-@@
--    np.savez_compressed("generation_metadata.npz", meta1=meta1_normalized, meta2=meta2_normalized)
-+    os.makedirs(args.save_dir, exist_ok=True)
-+    np.savez_compressed(os.path.join(args.save_dir, "generation_metadata.npz"),
-+                        arr_0=np.column_stack([meta1_normalized, meta2_normalized]))
+```
+exit=1
+FileNotFoundError: [Errno 2] No such file or directory: 'training_data_meta_meta1.npz'
+working directory now holds: gem_cutting_diagrams.log
 ```
 
-## Inference also depends on an undeclared plotting dependency
+**Possible fix:** take the statistics paths as explicit inputs, write under
+`args.save_dir`, and use one NPZ key convention from preparation to inference.
 
-**File and line:** `run_model.py:5`
+## 5. `matplotlib` not declared
 
-**What happens:** `run_model.py` imports `matplotlib.pyplot`, but
-`requirements.txt` does not list `matplotlib`. The inference-path check found
-that module unavailable in the project environment before the model could be
-run. The same check independently reaches the two-input mismatch above.
+**Status:** fixed in [`438f225`](https://github.com/Bissbert/GemDiagramAI/commit/438f225).
+
+**File:** `requirements.txt`
+
+**What happened:** `run_model.py` imports `matplotlib.pyplot`, but
+`requirements.txt` did not list it.
+
+**What changed:** `matplotlib` was added to `requirements.txt`. In the Linux
+run `tools/check_inference_path.py` reports:
+
+```
+matplotlib.pyplot                            installed
+requirements.txt lists matplotlib: True
+```
+
+## 6. `requirements.txt` does not install on Linux
+
+**Status:** open. Found in the Linux run.
+
+**File:** `requirements.txt`
+
+**What happens:** two separate problems.
+
+- `tensorflow-macos` and `tensorflow-metal` have no Linux wheels, so
+  `pip install -r requirements.txt` fails before installing anything.
+- With those two lines removed, the unpinned `numpy` resolves to numpy 2
+  (2.4.6 on this run). TensorFlow 2.14.0 was built against numpy 1 and fails
+  on import.
+
+**Reproduce** in `python:3.11-slim-bookworm`:
+
+```
+unmodified requirements.txt: exit=1
+ERROR: Could not find a version that satisfies the requirement tensorflow-macos (from versions: none)
+numpy 2.4.6
+import tensorflow: exit=1
+AttributeError: _ARRAY_API not found
+```
+
+Installing with the constraint `numpy<2` gives numpy 1.26.4, and TensorFlow
+then imports. `tools/linux-run.sh` installs this way.
+
+**Possible fix:** pin `numpy<2`, and mark the macOS packages with an
+environment marker such as `tensorflow-macos; sys_platform == "darwin"`.
+
+## 7. TensorBoard histograms exhaust memory in the first epoch
+
+**Status:** open. Found in the Linux run.
+
+**File:** `model.py:110`
+
+**What happens:** `train` attaches
+`TensorBoard(log_dir=log_dir, histogram_freq=1, ...)` to every `fit` call.
+At the end of the first `combined.fit`, TensorBoard builds a histogram of every
+weight. The generator's first `Dense` kernel is 100 × 2,097,152 =
+209,715,200 values. TensorBoard's bucketing one-hot encodes that into a
+`[209715200, 30]` float64 tensor, about 50 GB, and the allocation fails. This
+happens even with one epoch and a batch of one.
 
 **Reproduce:**
 
 ```sh
-tf_m1_env/bin/python tools/check_inference_path.py
+python3 tools/measure_training_step.py --epochs 1 --batch-size 1 --images random
 ```
 
-The output reports `matplotlib.pyplot NOT INSTALLED` and
-`requirements.txt lists matplotlib: False`.
-
-**Fix I would have made:** either declare the plotting dependency or move the
-plot import behind an optional output path with a clear error message.
-
-```diff
-diff --git a/requirements.txt b/requirements.txt
-@@
- numpy
-+matplotlib
- tensorflow-macos
 ```
+1/1 [==============================] - 1s 665ms/step
+...
+  File "/tmp/gd/model.py", line 144, in train
+    g_loss = combined.fit(z, real, epochs=1, verbose=0, callbacks=[tensorboard_callback])
+...
+tensorflow.python.framework.errors_impl.ResourceExhaustedError: ... OOM when allocating tensor with shape[209715200,30] and type double on /job:localhost/replica:0/task:0/device:CPU:0 by allocator cpu [Op:OneHot] name:
+exit=1 wall=6s
+```
+
+The container had 33 GB of memory. No checkpoint is written, because the
+first save comes after this call.
+
+**Possible fix:** set `histogram_freq=0`, or log histograms only for the small
+layers.

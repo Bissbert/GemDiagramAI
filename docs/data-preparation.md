@@ -32,25 +32,29 @@ The metadata path is intentionally simple:
 | Numeric field | Standardized independently by its mean and standard deviation. |
 | Text field | Kept as text and not standardized. |
 
-The repository includes three fixture SVGs and matching metadata. This exact
-quick-start run was executed with the checked-out TensorFlow environment:
+A numeric field whose values are all equal normalizes to zeros.
+
+The repository includes three fixture SVGs and matching metadata. This run is
+part of the Linux container run in [How this was measured](measurement.md):
 
 ```sh
-prepared_dir=$(mktemp -d /tmp/gemdiagram-quickstart.XXXXXX)
+mkdir /tmp/fx
 printf '%s\n%s\n' "$PWD/tools/fixtures/svg" "$PWD/tools/fixtures/metadata.json" |
-  tf_m1_env/bin/python prepare_data_for_training.py --save_dir "$prepared_dir"
-tf_m1_env/bin/python tools/measure_dataset.py --data-dir "$prepared_dir"
+  python3 -W error::RuntimeWarning prepare_data_for_training.py --save_dir /tmp/fx
+python3 tools/measure_dataset.py --data-dir /tmp/fx
 ```
 
-The command produced **3** image rows and **13** metadata fields. The prepared
-image tensor was `(3, 512, 512, 3)` with dtype `float32`. The fixture also
-contains a constant `lengthWidthRatio` column; its normalized values are
-`NaN`, as recorded in [the bug register](BUGS-FOUND.md).
+The command produced **3** image rows and **13** metadata fields, 8 of them
+numeric. The prepared image tensor was `(3, 512, 512, 3)` with dtype `float32`.
+All three fixtures share one `lengthWidthRatio`, so that column is all zeros;
+with runtime warnings promoted to errors the preparation still exits 0. Before
+[`08be6ff`](https://github.com/Bissbert/GemDiagramAI/commit/08be6ff) this column
+became `NaN` (entry 1 in [the bug register](BUGS-FOUND.md)).
 
 ## What the full prepared dataset contains
 
-The same measurement command against the repository's existing ignored
-`training-data/` directory reported **4,992** rows and the following field
+The same measurement against the git-ignored `training-data/` directory
+reported **4,992** rows and the following field
 split:
 
 | Stored field kind | Count | Current behaviour |

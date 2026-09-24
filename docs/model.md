@@ -25,8 +25,10 @@ flowchart LR
 The architecture measurement was run with:
 
 ```sh
-tf_m1_env/bin/python tools/measure_model.py
+python3 tools/measure_model.py
 ```
+
+in the Linux container from [How this was measured](measurement.md).
 
 | Built object | Input | Output | Total parameters |
 |---|---|---|---:|
@@ -36,15 +38,16 @@ tf_m1_env/bin/python tools/measure_model.py
 
 After `build_combined`, the measured discriminator trainable-parameter count
 is **0** while the generator remains at **212,035,843** trainable parameters.
-The separate discriminator `fit` path nevertheless changes weights because the
-discriminator was compiled before its trainable flag was changed. That is a
-runtime wiring bug, not a design claim; the reproduction is in
-[BUGS-FOUND.md](BUGS-FOUND.md).
+The discriminator still learns in its own `fit` calls, because it was compiled
+while trainable. That is the intended GAN setup; see [Training](training.md).
+
+The model has one input, the noise vector `z`. Metadata is not an input yet
+(entry 2 in [BUGS-FOUND.md](BUGS-FOUND.md)).
 
 The model's largest layer is the generator's first dense layer. The measurement
-reported **211,812,352** parameters for that layer alone. This is why a full
-training run is resource-heavy even before the data tensor is expanded in
-memory.
+reported **211,812,352** parameters for that layer alone. Its 209,715,200-value
+kernel is also what the TensorBoard histogram callback cannot fit in memory
+(entry 7 in [BUGS-FOUND.md](BUGS-FOUND.md)).
 
 ## Parameter surface
 

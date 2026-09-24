@@ -24,23 +24,23 @@ sequenceDiagram
     R-->>U: no image is displayed
 ```
 
-The check was run directly:
+The check runs in the Linux container from [How this was measured](measurement.md):
 
 ```sh
-tf_m1_env/bin/python tools/check_inference_path.py
+python3 tools/check_inference_path.py
 ```
 
-It verified that `predict(z)` returns a `(1, 512, 512, 3)` tensor and that
-`predict([z, combined_metadata])` fails with Keras' one-input error. It also
-reported that `matplotlib.pyplot` is not installed in the checked-out
-environment and that `requirements.txt` does not list it. These are separate
-blocking issues; neither was fixed during this documentation-only pass.
+`predict(z)` returns a `(1, 512, 512, 3)` tensor, and
+`predict([z, combined_metadata])` fails with Keras' one-input error. That is
+entry 2 in [BUGS-FOUND.md](BUGS-FOUND.md), still open. `matplotlib`, which
+`run_model.py` imports, is installed from `requirements.txt` since
+[`438f225`](https://github.com/Bissbert/GemDiagramAI/commit/438f225).
 
 The generation-preparation script has a separate path and file-format problem:
 `--save_dir` is parsed but not used, stats filenames are hard-coded, and the
-written named keys do not match the `arr_0` key used by the training-data
-loader. A clean-directory reproduction is in
-[BUGS-FOUND.md](BUGS-FOUND.md).
+written named keys do not match the `arr_0` key `run_model.py` reads. A
+clean-directory reproduction is entry 4 in [BUGS-FOUND.md](BUGS-FOUND.md),
+still open.
 
 ## Inputs the current path can and cannot handle
 
