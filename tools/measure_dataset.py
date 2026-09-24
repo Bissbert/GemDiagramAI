@@ -97,9 +97,19 @@ def main():
     print(f"  numeric fields: {len(numeric_fields)} "
           f"({', '.join(sorted(numeric_fields))})")
 
-    # train_model.py column_stacks every metadata file before training.
-    stacked = np.column_stack([fields[k] for k in fields])
-    print(f"  column_stack  : {stacked.shape} dtype={stacked.dtype}")
+    # train_model.py conditions on the numeric fields listed in
+    # metadata_stats.json, which older prepared data does not have.
+    stats_path = os.path.join(args.data_dir, "metadata_stats.json")
+    if os.path.exists(stats_path):
+        import json
+
+        with open(stats_path) as handle:
+            keys = json.load(handle)["keys"]
+        stacked = np.column_stack([fields[k] for k in keys])
+        print(f"  conditioning  : {stacked.shape} dtype={stacked.dtype} "
+              f"from metadata_stats.json")
+    else:
+        print("  conditioning  : no metadata_stats.json (prepared before it existed)")
 
     duplicates = []
     keys = list(fields)

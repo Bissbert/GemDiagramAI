@@ -2,3 +2,4 @@
 /logs/
 /tf_m1_env/
 /training-data/
+__pycache__/

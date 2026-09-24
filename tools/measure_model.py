@@ -49,13 +49,16 @@ def describe(model):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="Emit JSON only.")
+    parser.add_argument("--meta-dim", type=int, default=8,
+                        help="Numeric metadata fields to condition on "
+                             "(8 in the dataset; 0 for an unconditioned GAN).")
     args = parser.parse_args()
 
     from model import build_generator, build_discriminator, build_combined
     from model import img_shape, z_dim
 
-    generator = build_generator(z_dim)
-    discriminator = build_discriminator(img_shape)
+    generator = build_generator(z_dim, args.meta_dim)
+    discriminator = build_discriminator(img_shape, args.meta_dim)
 
     before = {
         "generator": describe(generator),
@@ -66,6 +69,7 @@ def main():
 
     result = {
         "z_dim": z_dim,
+        "meta_dim": args.meta_dim,
         "img_shape": list(img_shape),
         "before_build_combined": before,
         "after_build_combined": {
@@ -80,6 +84,7 @@ def main():
         return
 
     print(f"z_dim      : {z_dim}")
+    print(f"meta_dim   : {args.meta_dim}")
     print(f"img_shape  : {img_shape}")
     print()
 

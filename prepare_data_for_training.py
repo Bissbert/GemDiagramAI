@@ -37,7 +37,7 @@ def main():
             logging.info(f'Loaded {len(svg_files)} SVG files out of {len(metadata_dict)}')
 
     # Convert SVGs to image tensors and normalize metadata
-    imgs, metadata_separated = data_utils.load_data(svg_files, metadata)
+    imgs, metadata_separated, stats = data_utils.load_data(svg_files, metadata)
 
     # Save the image tensors and normalized metadata to .npz files
 
@@ -47,6 +47,12 @@ def main():
     np.savez_compressed(os.path.join(args.save_dir, "training_data_imgs.npz"), imgs)
     for key, meta_array in metadata_separated.items():
         np.savez_compressed(os.path.join(args.save_dir, f"training_data_meta_{key}.npz"), meta_array)
+
+    # Numeric fields, in order, with the statistics used to normalise them.
+    # train_model.py conditions on these fields and
+    # prepare_data_for_generation.py normalises new values with them.
+    with open(os.path.join(args.save_dir, data_utils.METADATA_STATS_FILE), 'w') as f:
+        json.dump(stats, f, indent=2)
 
     logging.info("Training data saved to .npz files.")
 
