@@ -7,10 +7,8 @@
 # diagrams). It is mounted read-only; without it the dataset measurement and
 # the two contact sheets are skipped.
 #
-# requirements.txt names tensorflow-macos and tensorflow-metal, which have no
-# Linux wheels, so the container installs every other line. It leaves numpy
-# unpinned, which resolves to numpy 2 and breaks TensorFlow 2.14; the script
-# shows that, then reinstalls with the constraint numpy<2.
+# requirements.txt is installed unmodified: the Apple-only packages carry a
+# sys_platform marker and numpy is pinned below 2 for TensorFlow 2.14.
 # The repository is mounted read-only and copied; rendered PNGs are written
 # back to media/.
 
@@ -35,23 +33,15 @@ section "environment"
 uname -srm
 python3 --version
 
-section "pip install (requirements.txt without tensorflow-macos, tensorflow-metal)"
-grep -vE "^tensorflow-(macos|metal)$" requirements.txt > /tmp/req.txt
-pip install -q --disable-pip-version-check --root-user-action=ignore -r /tmp/req.txt >/tmp/pip.log 2>&1
+section "pip install -r requirements.txt (unmodified)"
+pip install -q --disable-pip-version-check --root-user-action=ignore -r requirements.txt pytest >/tmp/pip.log 2>&1
 echo "exit=$?"
-pip install -q --disable-pip-version-check --root-user-action=ignore -r requirements.txt >/tmp/pip-full.log 2>&1
-echo "unmodified requirements.txt: exit=$?"
-grep -m1 -E "^ERROR" /tmp/pip-full.log
-python3 -c "import numpy; print(\"numpy\", numpy.__version__)"
-python3 -c "import tensorflow" >/tmp/tf.log 2>&1
-echo "import tensorflow: exit=$?"
-grep -m1 -E "^(ImportError|AttributeError)" /tmp/tf.log
-
-section "pip install again with the constraint numpy<2"
-echo "numpy<2" > /tmp/constraints.txt
-pip install -q --disable-pip-version-check --root-user-action=ignore -r /tmp/req.txt -c /tmp/constraints.txt >/tmp/pip2.log 2>&1
-echo "exit=$?"
+grep -m1 -E "^ERROR" /tmp/pip.log
+pip list 2>/dev/null | grep -ciE "^(django|image|tensorflow-macos|tensorflow-metal) " | xargs echo "Django, Image, tensorflow-macos, tensorflow-metal installed:"
 python3 -c "import tensorflow as tf, numpy, PIL, cairosvg, matplotlib; print(\"tensorflow\", tf.__version__, \"| numpy\", numpy.__version__, \"| Pillow\", PIL.__version__, \"| CairoSVG\", cairosvg.__version__, \"| matplotlib\", matplotlib.__version__)" 2>/dev/null
+
+section "pytest (tests/)"
+python3 -m pytest -p no:cacheprovider -q 2>&1 | tail -1
 
 section "tools/measure_config.py"
 python3 tools/measure_config.py
@@ -65,7 +55,8 @@ section "prepare_data_for_training.py on the three fixture SVGs"
 printf "%s\n%s\n" "$PWD/tools/fixtures/svg" "$PWD/tools/fixtures/metadata.json" |
     python3 -W error::RuntimeWarning prepare_data_for_training.py --save_dir /tmp/fx >/tmp/prep.log 2>&1
 echo "exit=$? (RuntimeWarning promoted to error)"
-ls /tmp/fx | wc -l | xargs echo "npz files:"
+ls /tmp/fx/*.npz | wc -l | xargs echo "npz files:"
+ls /tmp/fx/*.json | xargs -n1 basename | xargs echo "stats file:"
 
 section "tools/measure_dataset.py --data-dir <fixture output>"
 python3 tools/measure_dataset.py --data-dir /tmp/fx
@@ -79,12 +70,14 @@ python3 tools/check_training_wiring.py --batch-size 1
 section "tools/check_inference_path.py"
 python3 tools/check_inference_path.py
 
-section "prepare_data_for_generation.py --save_dir <new dir>, from an empty working directory"
+section "prepare_data_for_generation.py --save_dir <new dir> --training_data_dir <fixture output>, from an empty working directory"
 mkdir -p /tmp/empty && cd /tmp/empty
-printf "0.5\n0.8\n" | PYTHONPATH=/tmp/gd python3 /tmp/gd/prepare_data_for_generation.py --save_dir /tmp/empty/output >/tmp/gen.log 2>&1
+printf "65\n16\n1.0\n\n\n0.5\n0.17\n0.2\n" | PYTHONPATH=/tmp/gd python3 /tmp/gd/prepare_data_for_generation.py --save_dir /tmp/empty/output --training_data_dir /tmp/fx >/tmp/gen.log 2>&1
 echo "exit=$?"
 grep -m1 -E "Error" /tmp/gen.log
 ls -A /tmp/empty | xargs echo "working directory now holds:"
+ls -A /tmp/empty/output | xargs echo "output/ holds:"
+python3 -c "import numpy as np; d = np.load(\"/tmp/empty/output/generation_metadata.npz\"); print(\"arr_0\", d[\"arr_0\"].shape, np.round(d[\"arr_0\"], 3).tolist())"
 cd /tmp/gd
 
 section "tools/measure_training_step.py --epochs 1 --batch-size 1 --images random"

@@ -4,7 +4,8 @@
 This calls the real training loop, not a reimplementation, so the timing
 includes everything model.train() does per epoch: one generator.predict over
 the batch, two discriminator.fit calls, one combined.fit call, and the
-TensorBoard callback.
+TensorBoard callback. The models are conditioned on --meta-dim random
+metadata fields (8 in the dataset).
 
 model.train() writes a checkpoint whenever ``epoch % save_interval == 0``,
 which includes epoch 0. It writes into the current working directory, so this
@@ -57,6 +58,7 @@ def main():
     parser.add_argument("--images", choices=("prepared", "random"),
                         default="prepared")
     parser.add_argument("--workdir", default=None)
+    parser.add_argument("--meta-dim", type=int, default=8)
     args = parser.parse_args()
 
     import constants
@@ -79,9 +81,10 @@ def main():
     print(f"images      : {imgs.shape} {imgs.dtype}")
     print(f"batch_size  : {batch_size}")
     print(f"epochs      : {args.epochs}")
+    print(f"meta_dim    : {args.meta_dim}")
 
-    generator = build_generator(z_dim)
-    discriminator = build_discriminator(img_shape)
+    generator = build_generator(z_dim, args.meta_dim)
+    discriminator = build_discriminator(img_shape, args.meta_dim)
     combined = build_combined(generator, discriminator)
 
     workdir = args.workdir or tempfile.mkdtemp(prefix="gemdiagram-timing-")
@@ -91,8 +94,8 @@ def main():
     print(f"workdir     : {workdir}")
     print()
 
-    # metadata is accepted by train() but never read; pass the real shape.
-    metadata = np.zeros((len(imgs), 13), dtype="float32")
+    metadata = np.random.default_rng(1).normal(
+        0, 1, (len(imgs), args.meta_dim)).astype("float32")
 
     start = time.perf_counter()
     model.train(generator, discriminator, combined, imgs, metadata,
