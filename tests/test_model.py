@@ -116,7 +116,7 @@ def max_delta(before, after):
 
 
 def test_discriminator_learns_and_combined_freezes_it():
-    """Entry 3 (intended wiring): D.fit still trains D; combined.fit does not."""
+    """Intended GAN wiring: D.fit still trains D; combined.fit does not."""
     generator, discriminator, combined = tiny_models()
     imgs, metadata = synthetic()
     y = np.ones((len(imgs), 1))

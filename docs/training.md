@@ -64,8 +64,7 @@ python3 tools/check_training_wiring.py --batch-size 1
 | `combined.fit` → discriminator | Frozen; max delta `0.000e+00`. |
 | `combined.fit` → generator | Learned; max delta `2.000e-01`. |
 
-Those are the two phases a GAN needs. This was once reported as a bug and
-rejected; see entry 3 in [BUGS-FOUND.md](BUGS-FOUND.md).
+Those are the two phases a GAN needs.
 `tests/test_model.py::test_discriminator_learns_and_combined_freezes_it` checks
 the same thing on a 16 × 16 model.
 
@@ -90,7 +89,7 @@ The projection is for a batch of 1; the default batch of 32 costs more per
 epoch. Each checkpoint is 872.9 MiB, and with `SAVE_INTERVAL = 20` a full run
 writes 100 of them.
 
-Before the fix for entry 7 in [BUGS-FOUND.md](BUGS-FOUND.md), this command
+Before the fix for [#7](https://github.com/Bissbert/GemDiagramAI/issues/7), this command
 exited 1 after 6 seconds. The TensorBoard histogram callback in the first
 `combined.fit` failed with
 `OOM when allocating tensor with shape[209715200,30] and type double`.

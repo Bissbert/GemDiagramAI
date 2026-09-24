@@ -55,7 +55,7 @@ numeric) and `metadata_stats.json`. The prepared image tensor was `(3, 512, 512,
 All three fixtures share one `lengthWidthRatio`, so that column is all zeros;
 with runtime warnings promoted to errors the preparation still exits 0. Before
 [`08be6ff`](https://github.com/Bissbert/GemDiagramAI/commit/08be6ff) this column
-became `NaN` (entry 1 in [the bug register](BUGS-FOUND.md)).
+became `NaN`.
 
 ## What the full prepared dataset contains
 
@@ -69,8 +69,7 @@ split:
 | Text fields | 10 | Preserved as strings. |
 | Image shape | `(4992, 512, 512, 3)` | Float32 tensor, scaled to `[-1, 1]`. |
 
-That copy was prepared before the fix for entry 8 in
-[the bug register](BUGS-FOUND.md). Five of its text fields hold only numbers
+That copy was prepared before the fix for [#8](https://github.com/Bissbert/GemDiagramAI/issues/8). Five of its text fields hold only numbers
 and blanks: `tableWidthRatio` and `culetWidthRatio` (497 blanks each),
 `pavilionWidthRatio` (170), `crownWidthRatio` (159) and `girdles` (39).
 Preparing the source SVGs again gives 8 numeric fields and writes the
@@ -87,5 +86,4 @@ The source-to-tensor stages are also rendered from a real fixture run:
 
 ![Preprocessing stages](../media/preprocessing-stages.png)
 
-Known data caveats are collected in [Known limitations](../README.md#known-limitations)
-and [Bugs found](BUGS-FOUND.md).
+Known data caveats are collected in [Known limitations](../README.md#known-limitations).

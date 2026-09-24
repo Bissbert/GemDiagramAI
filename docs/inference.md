@@ -31,13 +31,12 @@ python3 tools/check_inference_path.py
 
 With the conditioned generator, `predict([z, metadata])` returns a
 `(1, 512, 512, 3)` tensor. `predict(z)` without metadata is rejected by Keras'
-two-input check. Before the fix for entry 2 in [BUGS-FOUND.md](BUGS-FOUND.md),
-the reverse was true. `matplotlib`, which `run_model.py` imports, is installed
+two-input check. Before the fix for [#4](https://github.com/Bissbert/GemDiagramAI/issues/4), the reverse was true. `matplotlib`, which `run_model.py` imports, is installed
 from `requirements.txt` since
 [`438f225`](https://github.com/Bissbert/GemDiagramAI/commit/438f225).
 
 `prepare_data_for_generation.py` writes to `--save_dir` and reads the
-statistics from `--training_data_dir` (entry 4 in [BUGS-FOUND.md](BUGS-FOUND.md)).
+statistics from `--training_data_dir` ([#5](https://github.com/Bissbert/GemDiagramAI/issues/5)).
 `tests/test_pipeline.py::test_end_to_end_conditioned_generation` runs the whole
 path on a 16 × 16 model trained for one epoch on the fixtures, and checks that
 the saved PNG is 16 × 16.

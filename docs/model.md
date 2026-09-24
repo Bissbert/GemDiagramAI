@@ -48,13 +48,12 @@ is **0** while the generator remains at **228,813,059** trainable parameters.
 The discriminator still learns in its own `fit` calls, because it was compiled
 while trainable. That is the intended GAN setup; see [Training](training.md).
 
-Metadata became an input with the fix for entry 2 in
-[BUGS-FOUND.md](BUGS-FOUND.md).
+Metadata became an input with the fix for [#4](https://github.com/Bissbert/GemDiagramAI/issues/4).
 
 The model's largest layer is the generator's first dense layer. The measurement
 reported **228,589,568** parameters for that layer alone. A kernel this size is
 why training logs no TensorBoard weight histograms: with `histogram_freq=1`
-the first epoch ran out of memory (entry 7 in [BUGS-FOUND.md](BUGS-FOUND.md)).
+the first epoch ran out of memory ([#7](https://github.com/Bissbert/GemDiagramAI/issues/7)).
 
 ## Parameter surface
 

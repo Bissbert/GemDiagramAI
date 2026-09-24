@@ -35,7 +35,7 @@ the two contact sheets.
 
 `requirements.txt` installs unmodified. The Apple-only packages are skipped by
 their `sys_platform` markers, numpy is pinned below 2, and the unrelated
-`Image` package is gone (entries 6 and 9 in [Bugs found](BUGS-FOUND.md)):
+`Image` package is gone ([#6](https://github.com/Bissbert/GemDiagramAI/issues/6) and [#9](https://github.com/Bissbert/GemDiagramAI/issues/9)):
 
 ```
 exit=0
@@ -56,15 +56,15 @@ was installed and `import tensorflow` failed with
 
 The suite in [`tests/`](../tests) uses 16 × 16 models and synthetic or fixture
 data. [`tests/docker.sh`](../tests/docker.sh) runs it on its own. For every
-fixed entry, reverting the fix makes its tests fail:
+fixed issue, reverting the fix makes its tests fail:
 
 | Reverted | Failing tests |
 |---|---|
-| `model.py` to before entry 2 | 9, including all of `tests/test_model.py` and the end-to-end run |
-| `histogram_freq=0` back to `1` (entry 7) | `test_train_disables_tensorboard_histograms` |
-| `prepare_data_for_generation.py` to before entry 4 | 3 in `tests/test_pipeline.py` |
-| `requirements.txt` to before entries 6 and 9 | 5 in `tests/test_requirements.py` |
-| blanks no longer imputed (entry 8) | 2 in `tests/test_data_utils.py` |
+| `model.py` to before [#4](https://github.com/Bissbert/GemDiagramAI/issues/4) | 9, including all of `tests/test_model.py` and the end-to-end run |
+| `histogram_freq=0` back to `1` ([#7](https://github.com/Bissbert/GemDiagramAI/issues/7)) | `test_train_disables_tensorboard_histograms` |
+| `prepare_data_for_generation.py` to before [#5](https://github.com/Bissbert/GemDiagramAI/issues/5) | 3 in `tests/test_pipeline.py` |
+| `requirements.txt` to before [#6](https://github.com/Bissbert/GemDiagramAI/issues/6) and [#9](https://github.com/Bissbert/GemDiagramAI/issues/9) | 5 in `tests/test_requirements.py` |
+| blanks no longer imputed ([#8](https://github.com/Bissbert/GemDiagramAI/issues/8)) | 2 in `tests/test_data_utils.py` |
 
 ## Configuration
 
@@ -95,7 +95,7 @@ The metadata has **13** fields. **3** are numeric and standardized
 (`faceCount`, `lengthWidthRatio`, `volumeWidthCubedRatio`); the other 10 are
 stored as text. `indexWheel` and `symmetry` hold identical values.
 
-This copy predates the fix for entry 8, so it has no `metadata_stats.json`:
+This copy predates the fix for [#8](https://github.com/Bissbert/GemDiagramAI/issues/8), so it has no `metadata_stats.json`:
 
 ```
 conditioning  : no metadata_stats.json (prepared before it existed)
@@ -128,7 +128,8 @@ All three share one `lengthWidthRatio`, which now normalizes to zeros instead of
 lengthWidthRatio         float64   yes              0       1  mean=+0.0000 std=0.0000 min=+0.000 max=+0.000
 ```
 
-That is the fix from entry 1 in [Bugs found](BUGS-FOUND.md).
+That is the fix from
+[`08be6ff`](https://github.com/Bissbert/GemDiagramAI/commit/08be6ff).
 
 ## The model
 
@@ -158,7 +159,7 @@ combined.fit -> generator          max_weight_delta=2.000e-01  learned=yes
 ```
 
 The discriminator learns in its own `fit` and stays frozen inside the combined
-model. That is the intended setup; see entry 3 in [Bugs found](BUGS-FOUND.md).
+model. That is the intended setup.
 
 ## Inference
 
@@ -204,7 +205,7 @@ checkpoint  : generator_model_epoch_0.h5 915,291,768 bytes (872.9 MiB)
 exit=0 wall=6s
 ```
 
-Before the fix for entry 7 this failed after 6 s:
+Before the fix for [#7](https://github.com/Bissbert/GemDiagramAI/issues/7) this failed after 6 s:
 `OOM when allocating tensor with shape[209715200,30] and type double ... [Op:OneHot]`.
 The projection is for a batch of 1, not the default 32.
 

@@ -125,8 +125,8 @@ flowchart LR
 The project accepts SVG text and JSON metadata mappings. A field whose
 non-blank values are all numbers is standardized, with blanks set to the field
 mean. Other fields are kept as text and not used for conditioning. Constant
-numeric columns normalize to zeros. Details and reproductions are in [Data preparation](docs/data-preparation.md),
-[Inference](docs/inference.md), and [Bugs found](docs/BUGS-FOUND.md).
+numeric columns normalize to zeros. Details and reproductions are in [Data preparation](docs/data-preparation.md)
+and [Inference](docs/inference.md).
 
 ## Parameter surface
 
@@ -192,8 +192,8 @@ From the Linux container run in [How this was measured](docs/measurement.md):
 - No trained checkpoint or model-quality metric is committed. The images in
   `media/` are real source/training diagrams and preprocessing outputs.
 
-Fixed bugs, with their reproductions and regression tests, are in
-[the bug register](docs/BUGS-FOUND.md). Measurements are on
+Bugs are tracked as [GitHub issues](https://github.com/Bissbert/GemDiagramAI/issues), and each fix has a
+regression test in [`tests/`](tests). Measurements are on
 [the measurement page](docs/measurement.md).
 
 ## Status
